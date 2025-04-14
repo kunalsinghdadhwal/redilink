@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: redilink 
+    env: docker
+    plan: free
+    repo: https://github.com/kunalsinghdadhwal/redilink
+    region: oregon
+    dockerComposeFilePath: ./docker-compose.yml
+    dockerCommand: docker compose up
