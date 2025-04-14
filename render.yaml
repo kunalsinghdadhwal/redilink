@@ -1,8 +1,0 @@
-services:
-  - type: web
-    name: redilink 
-    env: docker
-    plan: free
-    repo: https://github.com/kunalsinghdadhwal/redilink
-    region: oregon
-    dockerCommand: docker compose up
