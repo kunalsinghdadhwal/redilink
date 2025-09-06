@@ -6,6 +6,15 @@ import (
 	"github.com/kunalsinghdadhwal/redilink/database"
 )
 
+// ResolveURL godoc
+// @Summary Resolve a shortened URL
+// @Description Redirect to the original URL using the shortened code. This endpoint also increments the usage counter.
+// @Tags URLs
+// @Param url path string true "Shortened URL code" minlength(1) maxlength(50) example("abc123")
+// @Success 301 "Permanent redirect to the original URL"
+// @Failure 404 {object} map[string]string "Not Found - URL not found or expired"
+// @Failure 500 {object} map[string]string "Internal Server Error - Database connection issues"
+// @Router /{url} [get]
 func ResolveURL(c *fiber.Ctx) error {
 	url := c.Params("url")
 

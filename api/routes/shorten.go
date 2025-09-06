@@ -13,20 +13,36 @@ import (
 	"github.com/kunalsinghdadhwal/redilink/helpers"
 )
 
+// ShortenRequest represents the request body for shortening a URL
 type request struct {
-	URL         string        `json:"url"`
-	CustomShort string        `json:"short"`
-	Expiry      time.Duration `json:"expiry"`
+	URL         string `json:"url" example:"https://www.example.com" validate:"required,url"` // The original URL to be shortened (required)
+	CustomShort string `json:"short,omitempty" example:"mylink"`                              // Optional custom short code (if not provided, a random one will be generated)
+	Expiry      int    `json:"expiry,omitempty" example:"24"`                                 // URL expiration time in hours (default: 24 hours)
 }
 
+// ShortenResponse represents the response body for URL shortening
 type response struct {
-	URL                string        `json:"url"`
-	CustomShort        string        `json:"short"`
-	Expiry             time.Duration `json:"expiry"`
-	X_Rate_Remaining   int           `json:"rate_limit"`
-	X_Rate_Limit_Reset time.Duration `json:"rate_limit_reset"`
+	URL                string `json:"url" example:"https://www.example.com"`        // The original URL that was shortened
+	CustomShort        string `json:"short" example:"http://localhost:3000/abc123"` // The complete shortened URL
+	Expiry             int    `json:"expiry" example:"24"`                          // URL expiration time in hours
+	X_Rate_Remaining   int    `json:"rate_limit" example:"9"`                       // Number of requests remaining for current IP
+	X_Rate_Limit_Reset int    `json:"rate_limit_reset" example:"29"`                // Time until rate limit resets (in minutes)
 }
 
+// ShortenURL godoc
+// @Summary Shorten a URL
+// @Description Create a shortened URL from a given long URL. Rate limited to 10 requests per 30 minutes per IP.
+// @Tags URLs
+// @Accept json
+// @Produce json
+// @Param request body request true "URL shortening request"
+// @Success 200 {object} response "Successfully shortened URL"
+// @Failure 400 {object} map[string]string "Bad Request - Invalid request body or invalid URL"
+// @Failure 403 {object} map[string]string "Forbidden - Custom short URL already exists"
+// @Failure 429 {object} map[string]interface{} "Too Many Requests - Rate limit exceeded"
+// @Failure 500 {object} map[string]string "Internal Server Error"
+// @Failure 503 {object} map[string]string "Service Unavailable - Domain not allowed"
+// @Router /api/v1 [post]
 func ShortenURL(c *fiber.Ctx) error {
 	body := new(request)
 
@@ -47,7 +63,7 @@ func ShortenURL(c *fiber.Ctx) error {
 			limit, _ := r2.TTL(database.Ctx, c.IP()).Result()
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error":            "Rate limit exceeded",
-				"rate_limit_reset": limit / time.Nanosecond / time.Minute,
+				"rate_limit_reset": int(limit / time.Nanosecond / time.Minute),
 			})
 		}
 	}
@@ -84,7 +100,7 @@ func ShortenURL(c *fiber.Ctx) error {
 		body.Expiry = 24
 	}
 
-	err = r.Set(database.Ctx, id, body.URL, body.Expiry*3600*time.Second).Err()
+	err = r.Set(database.Ctx, id, body.URL, time.Duration(body.Expiry)*3600*time.Second).Err()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Internal server error"})
 	}
@@ -101,7 +117,7 @@ func ShortenURL(c *fiber.Ctx) error {
 	val, _ = r2.Get(database.Ctx, c.IP()).Result()
 	resp.X_Rate_Remaining, _ = strconv.Atoi(val)
 	ttl, _ := r2.TTL(database.Ctx, c.IP()).Result()
-	resp.X_Rate_Limit_Reset = ttl / time.Nanosecond / time.Minute
+	resp.X_Rate_Limit_Reset = int(ttl / time.Nanosecond / time.Minute)
 	resp.CustomShort = os.Getenv("DOMAIN") + "/" + id
 	return c.Status(fiber.StatusOK).JSON(resp)
 }

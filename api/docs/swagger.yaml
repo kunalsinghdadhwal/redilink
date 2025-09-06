@@ -1,0 +1,150 @@
+basePath: /
+definitions:
+  routes.request:
+    properties:
+      expiry:
+        description: 'URL expiration time in hours (default: 24 hours)'
+        example: 24
+        type: integer
+      short:
+        description: Optional custom short code (if not provided, a random one will
+          be generated)
+        example: mylink
+        type: string
+      url:
+        description: The original URL to be shortened (required)
+        example: https://www.example.com
+        type: string
+    required:
+    - url
+    type: object
+  routes.response:
+    properties:
+      expiry:
+        description: URL expiration time in hours
+        example: 24
+        type: integer
+      rate_limit:
+        description: Number of requests remaining for current IP
+        example: 9
+        type: integer
+      rate_limit_reset:
+        description: Time until rate limit resets (in minutes)
+        example: 29
+        type: integer
+      short:
+        description: The complete shortened URL
+        example: http://localhost:3000/abc123
+        type: string
+      url:
+        description: The original URL that was shortened
+        example: https://www.example.com
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact:
+    name: API Support
+  description: |-
+    A URL shortening service built with Go and Redis. This API provides endpoints to shorten long URLs and resolve shortened URLs back to their original destinations.
+
+    Features:
+    - URL shortening with optional custom short codes
+    - Automatic URL expiration (default 24 hours)
+    - Rate limiting (10 requests per 30 minutes per IP)
+    - Redis-based storage for high performance
+    - Usage analytics tracking
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: RediLink URL Shortener API
+  version: "1.0"
+paths:
+  /{url}:
+    get:
+      description: Redirect to the original URL using the shortened code. This endpoint
+        also increments the usage counter.
+      parameters:
+      - description: Shortened URL code
+        example: '"abc123"'
+        in: path
+        maxLength: 50
+        minLength: 1
+        name: url
+        required: true
+        type: string
+      responses:
+        "301":
+          description: Permanent redirect to the original URL
+        "404":
+          description: Not Found - URL not found or expired
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error - Database connection issues
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Resolve a shortened URL
+      tags:
+      - URLs
+  /api/v1:
+    post:
+      consumes:
+      - application/json
+      description: Create a shortened URL from a given long URL. Rate limited to 10
+        requests per 30 minutes per IP.
+      parameters:
+      - description: URL shortening request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/routes.request'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully shortened URL
+          schema:
+            $ref: '#/definitions/routes.response'
+        "400":
+          description: Bad Request - Invalid request body or invalid URL
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "403":
+          description: Forbidden - Custom short URL already exists
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "429":
+          description: Too Many Requests - Rate limit exceeded
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable - Domain not allowed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Shorten a URL
+      tags:
+      - URLs
+schemes:
+- http
+- https
+swagger: "2.0"

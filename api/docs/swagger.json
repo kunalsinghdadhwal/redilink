@@ -1,0 +1,187 @@
+{
+  "schemes": ["http", "https"],
+  "swagger": "2.0",
+  "info": {
+    "description": "A URL shortening service built with Go and Redis. This API provides endpoints to shorten long URLs and resolve shortened URLs back to their original destinations.\n\nFeatures:\n- URL shortening with optional custom short codes\n- Automatic URL expiration (default 24 hours)\n- Rate limiting (10 requests per 30 minutes per IP)\n- Redis-based storage for high performance\n- Usage analytics tracking",
+    "title": "RediLink URL Shortener API",
+    "termsOfService": "http://swagger.io/terms/",
+    "contact": {
+      "name": "API Support"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "1.0"
+  },
+  "host": "localhost:3000",
+  "basePath": "/",
+  "paths": {
+    "/api/v1": {
+      "post": {
+        "description": "Create a shortened URL from a given long URL. Rate limited to 10 requests per 30 minutes per IP.",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "tags": ["URLs"],
+        "summary": "Shorten a URL",
+        "parameters": [
+          {
+            "description": "URL shortening request",
+            "name": "request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/routes.request"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successfully shortened URL",
+            "schema": {
+              "$ref": "#/definitions/routes.response"
+            }
+          },
+          "400": {
+            "description": "Bad Request - Invalid request body or invalid URL",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - Custom short URL already exists",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests - Rate limit exceeded",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable - Domain not allowed",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/{url}": {
+      "get": {
+        "description": "Redirect to the original URL using the shortened code. This endpoint also increments the usage counter.",
+        "tags": ["URLs"],
+        "summary": "Resolve a shortened URL",
+        "parameters": [
+          {
+            "maxLength": 50,
+            "minLength": 1,
+            "type": "string",
+            "example": "\"abc123\"",
+            "description": "Shortened URL code",
+            "name": "url",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "301": {
+            "description": "Permanent redirect to the original URL"
+          },
+          "404": {
+            "description": "Not Found - URL not found or expired",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error - Database connection issues",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "routes.request": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "expiry": {
+          "description": "URL expiration time in hours (default: 24 hours)",
+          "type": "integer",
+          "example": 24
+        },
+        "short": {
+          "description": "Optional custom short code (if not provided, a random one will be generated)",
+          "type": "string",
+          "example": "mylink"
+        },
+        "url": {
+          "description": "The original URL to be shortened (required)",
+          "type": "string",
+          "example": "https://www.example.com"
+        }
+      }
+    },
+    "routes.response": {
+      "type": "object",
+      "properties": {
+        "expiry": {
+          "description": "URL expiration time in hours",
+          "type": "integer",
+          "example": 24
+        },
+        "rate_limit": {
+          "description": "Number of requests remaining for current IP",
+          "type": "integer",
+          "example": 9
+        },
+        "rate_limit_reset": {
+          "description": "Time until rate limit resets (in minutes)",
+          "type": "integer",
+          "example": 29
+        },
+        "short": {
+          "description": "The complete shortened URL",
+          "type": "string",
+          "example": "http://localhost:3000/abc123"
+        },
+        "url": {
+          "description": "The original URL that was shortened",
+          "type": "string",
+          "example": "https://www.example.com"
+        }
+      }
+    }
+  }
+}
